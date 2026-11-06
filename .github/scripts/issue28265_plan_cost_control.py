@@ -2,6 +2,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import platform
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -23,6 +25,18 @@ CLIS = {
 }
 BENCHMARK = ROOT / "benchmark/imdb_plan_cost"
 QUERY = (BENCHMARK / "queries/05c.sql").read_text()
+DATABASES = {
+    "a": ("old.duckdb", "base"),
+    "b": ("base_second.duckdb", "base"),
+    "c": ("new.duckdb", "fixed"),
+}
+STATS_COLUMNS = {
+    "company_type": ["id", "kind"],
+    "info_type": ["id"],
+    "movie_companies": ["movie_id", "company_type_id", "note"],
+    "movie_info": ["movie_id", "info_type_id", "info"],
+    "title": ["id", "production_year"],
+}
 
 
 def digest(path):
@@ -64,6 +78,12 @@ report = {
     "identity_note": "Source revisions were verified from build checkout logs. The base artifact inherits the new version/hash metadata.",
     "binaries": identities,
     "query": QUERY,
+    "schema_sha256": digest(BENCHMARK / "init/schema.sql"),
+    "load_sql_sha256": digest(BENCHMARK / "init/load.sql"),
+    "source_data_urls": re.findall(
+        r"https://[^']+", (BENCHMARK / "init/load.sql").read_text()
+    ),
+    "machine": {"platform": platform.platform(), "cpu_count": os.cpu_count()},
     "completed": False,
     "measurements": [],
     "databases": {},
@@ -85,22 +105,47 @@ assert (
     report["artifact_run"] == "42184322469"
 ), "Source provenance is pinned to the observed failing run"
 save_report()
-for label in ["a", "b"]:
-    db = OUT / f"base_init_{label}.duckdb"
-    runner.init_db(str(CLIS["base"]), str(db), str(BENCHMARK), ["httpfs"])
-    report["databases"][label] = {"path": str(db), "before_sha256": digest(db)}
+for label, (filename, initializer) in DATABASES.items():
+    db = OUT / filename
+    runner.init_db(str(CLIS[initializer]), str(db), str(BENCHMARK), ["httpfs"])
+    report["databases"][label] = {
+        "path": str(db),
+        "initialized_by": initializer,
+        "before_sha256": digest(db),
+    }
     for phase, cli in CLIS.items():
         report["databases"][label][phase + "_identity"] = cli_json(
             cli,
             db,
             "SELECT version() AS version, current_setting('threads') AS threads",
         )
+        stats = {}
+        for table, columns in STATS_COLUMNS.items():
+            stats_sql = (
+                "SELECT "
+                + ", ".join(f"stats({column}) AS {column}" for column in columns)
+                + f" FROM {table} LIMIT 1"
+            )
+            ndv_sql = (
+                "SELECT count(*) AS rows, "
+                + ", ".join(
+                    f"approx_count_distinct({column}) AS {column}_ndv"
+                    for column in columns
+                )
+                + f" FROM {table}"
+            )
+            stats[table] = {
+                "optimizer_stats": cli_json(cli, db, stats_sql),
+                "data_ndvs": cli_json(cli, db, ndv_sql),
+            }
+        report["databases"][label][phase + "_stats"] = stats
+        save_report()
     save_report()
 
 expected_rows = None
 for repeat in range(3):
     order = ["base", "fixed"] if repeat % 2 == 0 else ["fixed", "base"]
-    for label in ["a", "b"]:
+    for label in DATABASES:
         db = Path(report["databases"][label]["path"])
         for phase in order:
             profile = OUT / f"{label}_{phase}_{repeat}.profile.json"
