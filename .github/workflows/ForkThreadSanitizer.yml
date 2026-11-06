@@ -1,0 +1,63 @@
+name: Fork ThreadSanitizer
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths: [.github/workflows/ForkThreadSanitizer.yml]
+  workflow_dispatch:
+    inputs:
+      duckdb_commit:
+        description: Engine commit to validate
+        required: true
+        type: string
+        default: 3c2fc2c925af936c72c0a97776515d0396a06488
+permissions:
+  contents: read
+concurrency:
+  group: fork-threadsan-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  threadsan:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/manylinux_2_28_amd64_main:20260923-ade72a46
+      # ThreadSanitizer re-execs with ASLR disabled.
+      options: --security-opt seccomp=unconfined
+    env:
+      DUCKDB_COMMIT: ${{ inputs.duckdb_commit || '3c2fc2c925af936c72c0a97776515d0396a06488' }}
+      TSAN_OPTIONS: suppressions=.sanitizer-thread-suppressions.txt:external_symbolizer_path=/usr/bin/llvm-symbolizer
+      DUCKDB_TEST_DESCRIPTION: Tests run with thread sanitizer.
+      BUILD_JEMALLOC: 1
+      THREADSAN: 1
+      CORE_EXTENSIONS: icu;tpch;tpcds;fts;json;inet;parquet;autocomplete;httpfs
+    steps:
+      - name: Checkout engine commit
+        uses: duckdb/duckdb-ci/.github/actions/checkout@main
+        with:
+          runner_provider: github
+          fetch_depth: 0
+          ref: ${{ env.DUCKDB_COMMIT }}
+      - name: Verify ThreadSanitizer startup
+        shell: bash
+        run: |
+          printf 'int main() { return 0; }\n' > "$RUNNER_TEMP/tsan-startup.cpp"
+          clang++ -fsanitize=thread "$RUNNER_TEMP/tsan-startup.cpp" -o "$RUNNER_TEMP/tsan-startup"
+          "$RUNNER_TEMP/tsan-startup"
+      - name: Resolve version
+        shell: bash
+        run: |
+          python3 scripts/ci/version.py --duckdb-commit "$DUCKDB_COMMIT" --github-output > "$RUNNER_TEMP/duckdb-version.txt"
+          sed -n 's/^duckdb_version=/DUCKDB_VERSION=/p' "$RUNNER_TEMP/duckdb-version.txt" >> "$GITHUB_ENV"
+      - uses: ./.github/actions/ccache-action
+        with:
+          save: true
+      - name: Build threadsan
+        uses: duckdb/duckdb-ci/build-duckdb@main
+        with:
+          build-type: reldebug
+          build: python3 scripts/ci/retry.py -- make reldebug
+          vcpkg-commit: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3
+          cache-suffix: threadsan
+          save-cache: true
+      - name: Test
+        run: make unittest_threadsan
