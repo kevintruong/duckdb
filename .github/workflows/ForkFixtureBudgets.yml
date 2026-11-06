@@ -1,0 +1,126 @@
+name: Fork Fixture Resource Budgets
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths:
+      - .github/workflows/ForkFixtureBudgets.yml
+      - .github/scripts/fixture_budget_checks.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows32:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: windows-2022
+    timeout-minutes: 100
+    env:
+      GEN: ninja
+      CC: clang-cl
+      CXX: clang-cl
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      EXTRA_CMAKE_VARIABLES: -DCMAKE_C_COMPILER_TARGET=i686-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=i686-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve evidence helper
+        shell: bash
+        run: cp .github/scripts/fixture_budget_checks.py "$RUNNER_TEMP/fixture_budget_checks.py"
+      - uses: actions/checkout@v6
+        with:
+          ref: a662f0340baa5955b2331aeb7ff7bae120657e79
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: ./.github/actions/ccache-action
+        with:
+          key: win-release-32
+      - uses: ./.github/actions/setup-msvc-env
+        with:
+          arch: x86
+          host_arch: x64
+      - name: Verify source and build native 32-bit engine
+        shell: bash
+        run: |
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = a662f0340baa5955b2331aeb7ff7bae120657e79
+          python scripts/ci/retry.py -- make windows_release_32
+      - name: Preserve binaries before diagnostics
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-windows32-binaries
+          path: |
+            test/unittest.exe
+            duckdb.exe
+            src/duckdb.dll
+            CMakeCache.txt
+            compile_commands.json
+          retention-days: 7
+      - name: Reproduce old fixture and test fixed fixture on the same 32-bit binary
+        shell: bash
+        run: python "$RUNNER_TEMP/fixture_budget_checks.py" windows
+      - name: Run full Windows 32-bit unit suite
+        shell: bash
+        run: python test/run.py
+      - name: Run Windows shell tests
+        shell: bash
+        run: |
+          python -m pip install pytest
+          python -m pytest tools/shell/tests --shell-binary duckdb.exe
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-windows32-evidence
+          path: fixture-evidence
+          if-no-files-found: error
+  vector2:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/ubuntu_24_04_amd64_compat:20260923-ade72a46
+    env:
+      CC: gcc
+      CXX: g++
+      GEN: ninja
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      DUCKDB_TEST_DESCRIPTION: 'Compiled with STANDARD_VECTOR_SIZE=2.'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve evidence helper
+        run: cp .github/scripts/fixture_budget_checks.py "$RUNNER_TEMP/fixture_budget_checks.py"
+      - uses: actions/checkout@v6
+        with:
+          ref: a662f0340baa5955b2331aeb7ff7bae120657e79
+          fetch-depth: 2
+      - name: Verify source
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git diff --exit-code
+          test "$(git rev-parse HEAD)" = a662f0340baa5955b2331aeb7ff7bae120657e79
+      - uses: ./.github/actions/ccache-action
+        with:
+          key: fork-vector2-control
+      - name: Build vector-size-two engine
+        shell: bash
+        run: STANDARD_VECTOR_SIZE=2 make reldebug
+      - name: Preserve binaries before diagnostics
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-vector2-binaries
+          path: |
+            build/reldebug/test/unittest
+            build/reldebug/src/libduckdb.so
+            build/reldebug/CMakeCache.txt
+          retention-days: 7
+      - name: Test all changed SQL files and string ownership API tests without skips
+        run: python3 "$RUNNER_TEMP/fixture_budget_checks.py" vector
+      - name: Run full standard vector-size-two suite with native batch evidence
+        run: python3 "$RUNNER_TEMP/fixture_budget_checks.py" suite
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-vector2-evidence
+          path: fixture-evidence
+          if-no-files-found: error
