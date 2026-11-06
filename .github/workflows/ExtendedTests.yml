@@ -1,6 +1,11 @@
 name: ExtendedTests
 on:
   workflow_dispatch:
+    inputs:
+      benchmarks_only:
+        description: Run the four compiler benchmark jobs only
+        type: boolean
+        default: false
   push:
     branches-ignore:
       - 'main'
@@ -23,6 +28,7 @@ env:
 
 jobs:
   linux-configs-all:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.benchmarks_only }}
     name: Run all tests with different configurations
     runs-on: ubuntu-24.04
     strategy:
@@ -87,13 +93,15 @@ jobs:
      - uses: ./.github/actions/ccache-action
 
      - name: Build
-       shell: bash
-       run: |
-         python3 scripts/ci/retry.py -- bash -lc 'LTO=full make'
-         python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
-         cd duckdb
-         python3 ../scripts/ci/retry.py -- make
-         cd ..
+       uses: duckdb/duckdb-ci/build-duckdb@main
+       with:
+         vcpkg-commit: default
+         build: |
+           python3 scripts/ci/retry.py -- bash -lc 'LTO=full make'
+           python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
+           cd duckdb
+           python3 ../scripts/ci/retry.py -- make
+           cd ..
 
      - name: Set up benchmarks
        shell: bash
@@ -165,13 +173,15 @@ jobs:
      - uses: ./.github/actions/ccache-action
 
      - name: Build
-       shell: bash
-       run: |
-         python3 scripts/ci/retry.py -- bash -lc "CMAKE_LLVM_PATH='/opt/homebrew/opt/llvm' make"
-         python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
-         cd duckdb
-         python3 ../scripts/ci/retry.py -- make
-         cd ..
+       uses: duckdb/duckdb-ci/build-duckdb@main
+       with:
+         vcpkg-commit: default
+         build: |
+           python3 scripts/ci/retry.py -- bash -lc "CMAKE_LLVM_PATH='/opt/homebrew/opt/llvm' make"
+           python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
+           cd duckdb
+           python3 ../scripts/ci/retry.py -- make
+           cd ..
 
      - name: Set up benchmarks
        shell: bash
@@ -243,18 +253,20 @@ jobs:
        - uses: ./.github/actions/ccache-action
 
        - name: Build
-         shell: bash
-         run: |
-           #### This should also be alternative way to instal llvm to a specific version
-           # wget https://apt.llvm.org/llvm.sh
-           # chmod +x llvm.sh
-           # sudo ./llvm.sh 17
-           #####
-           python3 scripts/ci/retry.py -- bash -lc "CMAKE_LLVM_PATH='/usr/lib/llvm-14' make"
-           python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
-           cd duckdb
-           python3 ../scripts/ci/retry.py -- make
-           cd ..
+         uses: duckdb/duckdb-ci/build-duckdb@main
+         with:
+           vcpkg-commit: default
+           build: |
+             #### This should also be alternative way to instal llvm to a specific version
+             # wget https://apt.llvm.org/llvm.sh
+             # chmod +x llvm.sh
+             # sudo ./llvm.sh 17
+             #####
+             python3 scripts/ci/retry.py -- bash -lc "CMAKE_LLVM_PATH='/usr/lib/llvm-14' make"
+             python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
+             cd duckdb
+             python3 ../scripts/ci/retry.py -- make
+             cd ..
 
        - name: Set up benchmarks
          shell: bash
@@ -325,13 +337,15 @@ jobs:
        - uses: ./.github/actions/ccache-action
 
        - name: Build
-         shell: bash
-         run: |
-           python3 scripts/ci/retry.py -- bash -lc "LTO='full' make"
-           python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
-           cd duckdb
-           python3 ../scripts/ci/retry.py -- make
-           cd ..
+         uses: duckdb/duckdb-ci/build-duckdb@main
+         with:
+           vcpkg-commit: default
+           build: |
+             python3 scripts/ci/retry.py -- bash -lc "LTO='full' make"
+             python3 scripts/ci/retry.py -- git clone --branch ${{ env.BASE_BRANCH }} https://github.com/duckdb/duckdb.git --depth=1
+             cd duckdb
+             python3 ../scripts/ci/retry.py -- make
+             cd ..
 
        - name: Set up benchmarks
          shell: bash
