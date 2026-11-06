@@ -30,11 +30,12 @@ HEAD = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 assert HEAD == EXPECTED[PHASE], HEAD
 CACHE = Path("build/reldebug/CMakeCache.txt").read_text()
 assert (
-    "STANDARD_VECTOR_SIZE:STRING=2" in CACHE
-    or "STANDARD_VECTOR_SIZE:UNINITIALIZED=2" in CACHE
+    "STANDARD_VECTOR_SIZE:STRING=2" in CACHE.splitlines()
+    or "STANDARD_VECTOR_SIZE:UNINITIALIZED=2" in CACHE.splitlines()
 )
 REPORT = {
     "collection_only": True,
+    "completed": False,
     "phase": PHASE,
     "commit": HEAD,
     "platform": platform.platform(),
@@ -139,6 +140,9 @@ try:
     result = run_case(REGRESSION, "struct-regression")
     if PHASE == "fixed":
         assert result["all_tests_passed"], "Fixed engine must pass the regression"
+        assert (
+            "All tests passed (71 assertions" in (OUT / result["log"]).read_text()
+        ), "Require every regression assertion"
     else:
         output = (OUT / result["log"]).read_text(errors="replace")
         assert result["returncode"] not in (None, 0), "Base must fail the regression"
