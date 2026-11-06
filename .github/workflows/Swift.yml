@@ -1,5 +1,26 @@
 name: Swift
 on:
+  workflow_dispatch:
+    inputs:
+      duckdb_commit:
+        description: Engine commit to validate
+        type: string
+        required: true
+        default: 3c2fc2c925af936c72c0a97776515d0396a06488
+      duckdb_version:
+        type: string
+      is_release_build:
+        type: boolean
+        default: false
+      runner_macos_arm64:
+        type: string
+        default: macos-15
+      runner_provider:
+        type: string
+        default: github
+      xcode_path:
+        type: string
+        default: /Applications/Xcode_16.4.app
   workflow_call:
     inputs:
       duckdb_commit:
@@ -13,6 +34,9 @@ on:
       runner_provider:
         required: true
         type: string
+      xcode_path:
+        type: string
+        default: /Applications/Xcode_15.4.app
 concurrency:
   group: swift-${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
   cancel-in-progress: true
@@ -63,7 +87,9 @@ jobs:
         run: python3 tools/swift/create_package.py tools/swift
 
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app && /usr/bin/xcodebuild -version
+        env:
+          XCODE_PATH: ${{ inputs.xcode_path }}
+        run: sudo xcode-select -switch "$XCODE_PATH" && /usr/bin/xcodebuild -version
 
       - name: Run Tests
         run: |
