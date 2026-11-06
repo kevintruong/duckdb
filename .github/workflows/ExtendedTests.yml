@@ -248,7 +248,7 @@ jobs:
            inputs.benchmark_job == '' || inputs.benchmark_job == 'all' ||
            inputs.benchmark_job == 'regression-clang-benchmark-runner' }}
      name: Benchmark runner clang vs gcc
-     runs-on: ubuntu-latest
+     runs-on: ubuntu-24.04
      env:
        CC: gcc
        CXX: g++
