@@ -1,0 +1,53 @@
+name: Fork Plan Cost Control
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths:
+      - .github/workflows/ForkPlanCost.yml
+      - .github/scripts/issue28265_plan_cost_control.py
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fork-plan-cost-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  control:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/manylinux_2_28_amd64_main:20260923-ade72a46
+    env:
+      ARTIFACT_RUN: '42184322469'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download current release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-release-build.tar.gz
+          path: build/current
+          run-id: ${{ env.ARTIFACT_RUN }}
+          github-token: ${{ github.token }}
+      - name: Download base release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: linux-base-build
+          path: build/base
+          run-id: ${{ env.ARTIFACT_RUN }}
+          github-token: ${{ github.token }}
+      - name: Extract release artifacts
+        run: |
+          tar -xzf build/current/linux-release-build.tar.gz -C build/current
+          tar -xzf build/base/release-artifact.tar.gz -C build/base
+      - name: Compare same binaries and identical databases
+        run: python3 .github/scripts/issue28265_plan_cost_control.py
+      - name: Preserve profiles and comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: plan-cost-control-evidence
+          path: |
+            build/plan-cost-control/*.json
+          if-no-files-found: error
