@@ -1,0 +1,14 @@
+{
+  "reference_run": 42270425866,
+  "unlimited_replay_run": 42278536876,
+  "reference_batch": "f20ab89c2b8046068246c8a4b14b4d8b",
+  "reference_elapsed_s": 104.96933584299995,
+  "unlimited_elapsed_s": [
+    54.39452290600002,
+    54.349559778000014
+  ],
+  "reported_cpus": 4,
+  "cpu_quota": 2.07,
+  "formula": "4 * mean(unlimited_replay_elapsed_s) / original_batch_elapsed_s, rounded to 0.01 CPU",
+  "interpretation": "Experimental throughput envelope; does not establish the original host had a CPU quota"
+}

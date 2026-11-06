@@ -1,0 +1,88 @@
+name: Fork Vector Size Two Throughput Control
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths:
+      - .github/workflows/ForkVector2Throughput.yml
+      - .github/scripts/issue28265_vector_throughput_calibration.json
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fork-vector2-throughput-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  vector-sizes:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/ubuntu_24_04_amd64_compat:20260923-ade72a46
+      options: --cpus 2.07
+    env:
+      CC: gcc
+      CXX: g++
+      GEN: ninja
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      DUCKDB_TEST_DESCRIPTION: 'Compiled with STANDARD_VECTOR_SIZE=2. Use require vector_size 2048 to skip tests.'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve captured workload and helper
+        run: |
+          cp .github/scripts/issue28265_vector_load_replay.py "$RUNNER_TEMP/vector_load_replay.py"
+          cp .github/scripts/issue28265_vector_load_input.json "$RUNNER_TEMP/vector-replay-input.json"
+          echo "VECTOR_EVIDENCE=$RUNNER_TEMP/vector2-throughput-evidence" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/vector2-throughput-evidence"
+          cp .github/scripts/issue28265_vector_throughput_calibration.json "$RUNNER_TEMP/vector2-throughput-evidence/calibration.json"
+          if test -f /sys/fs/cgroup/cpu.max; then cat /sys/fs/cgroup/cpu.max > "$RUNNER_TEMP/vector2-throughput-evidence/cpu-quota.txt"; fi
+      - uses: actions/checkout@v6
+        with:
+          ref: 2b4f45c3abdd4bd8ecc49b0ba6c69dd64e210bbc
+          clean: false
+      - name: Verify fixed source
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD)" = 2b4f45c3abdd4bd8ecc49b0ba6c69dd64e210bbc
+          git diff --exit-code
+      - uses: ./.github/actions/ccache-action
+        with:
+          key: fork-vector2-control
+          save: true
+      - name: Build fixed vector-size-two engine
+        shell: bash
+        run: STANDARD_VECTOR_SIZE=2 make reldebug 2>&1 | tee "$VECTOR_EVIDENCE/fixed-build.log"
+      - name: Replay captured workload on fixed engine
+        id: fixed-replay
+        continue-on-error: true
+        run: python3 "$RUNNER_TEMP/vector_load_replay.py" fixed
+      - uses: actions/checkout@v6
+        with:
+          ref: c3dc01af116ce439464d582448b9c4d8dc412aec
+          clean: false
+      - name: Verify unchanged base
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD)" = c3dc01af116ce439464d582448b9c4d8dc412aec
+          git diff --exit-code
+      - name: Rebuild base with the same options
+        shell: bash
+        run: STANDARD_VECTOR_SIZE=2 make reldebug 2>&1 | tee "$VECTOR_EVIDENCE/base-build.log"
+      - name: Replay captured workload on base engine
+        id: base-replay
+        continue-on-error: true
+        run: python3 "$RUNNER_TEMP/vector_load_replay.py" base
+      - name: Check collections completed
+        env:
+          FIXED_OUTCOME: ${{ steps.fixed-replay.outcome }}
+          BASE_OUTCOME: ${{ steps.base-replay.outcome }}
+        run: |
+          test "$FIXED_OUTCOME" = success
+          test "$BASE_OUTCOME" = success
+      - name: Preserve exact batch replay evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vector2-throughput-replay-evidence
+          path: ${{ runner.temp }}/vector2-throughput-evidence
+          retention-days: 7
+          if-no-files-found: error
