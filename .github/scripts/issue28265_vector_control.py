@@ -1,6 +1,7 @@
 """Collect native vector-size-two diagnostics; no CI test budgets are changed."""
 
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -8,10 +9,12 @@ import platform
 import re
 import subprocess
 import sys
+import threading
 import time
 
 
 PHASE = sys.argv[1]
+LOCK = threading.RLock()
 EXPECTED = {
     "fixed": "2b4f45c3abdd4bd8ecc49b0ba6c69dd64e210bbc",
     "base": "c3dc01af116ce439464d582448b9c4d8dc412aec",
@@ -51,7 +54,8 @@ assert not REPORT["tracked_diff"], REPORT["tracked_diff"]
 
 
 def save():
-    (OUT / f"{PHASE}.json").write_text(json.dumps(REPORT, indent=2) + "\n")
+    with LOCK:
+        (OUT / f"{PHASE}.json").write_text(json.dumps(REPORT, indent=2) + "\n")
 
 
 def run_case(path, label, diagnostic=False):
@@ -87,8 +91,9 @@ def run_case(path, label, diagnostic=False):
         "all_tests_passed": returncode == 0 and "All tests passed" in output,
         "no_tests_matched": "No test cases matched" in output,
     }
-    REPORT["tests"].append(item)
-    save()
+    with LOCK:
+        REPORT["tests"].append(item)
+        save()
     print(json.dumps(item), flush=True)
     assert not item["no_tests_matched"], output
     return item
@@ -113,6 +118,24 @@ try:
                 run_case(diagnostic, stem + "_budget_control", diagnostic=True)
             finally:
                 diagnostic.unlink()
+    # Main runs three test workers; preserve the original per-query deadlines under that load.
+    stems = [
+        "cte_runtime_filter_modes",
+        "cte_runtime_filter_sibling_dependencies",
+        "cte_runtime_filter_modes",
+    ]
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [
+            pool.submit(
+                run_case,
+                Path("test/sql/cte/materialized", stem + ".test"),
+                f"parallel-{i}-{stem}",
+                True,
+            )
+            for i, stem in enumerate(stems)
+        ]
+        for future in futures:
+            future.result()
     result = run_case(REGRESSION, "struct-regression")
     if PHASE == "fixed":
         assert result["all_tests_passed"], "Fixed engine must pass the regression"
