@@ -6,6 +6,16 @@ on:
         description: Run the four compiler benchmark jobs only
         type: boolean
         default: false
+      benchmark_job:
+        description: Select a compiler benchmark job
+        type: choice
+        default: all
+        options:
+          - all
+          - regression-lto-benchmark-runner
+          - regression-clang16-vs-clang14-benchmark-runner
+          - regression-clang-benchmark-runner
+          - regression-flto-gcc-benchmark-runner
   push:
     branches-ignore:
       - 'main'
@@ -20,7 +30,7 @@ on:
       - '.github/workflows/ExtendedTests.yml'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}-${{ inputs.benchmark_job || 'all' }}
   cancel-in-progress: true
 
 env:
@@ -66,6 +76,10 @@ jobs:
         ./build/reldebug/test/run --test-config=test/configs/${{ matrix.config }}.json "*"
 
   regression-lto-benchmark-runner:
+     if: >-
+       ${{ github.event_name != 'workflow_dispatch' ||
+           inputs.benchmark_job == '' || inputs.benchmark_job == 'all' ||
+           inputs.benchmark_job == 'regression-lto-benchmark-runner' }}
      name: Benchmark runner lto vs non-lto (OSX)
      runs-on: macos-latest
      env:
@@ -146,6 +160,10 @@ jobs:
          python scripts/regression/test_runner.py --nofail --old duckdb/build/release/benchmark/benchmark_runner --new build/release/benchmark/benchmark_runner --benchmarks .github/regression/imdb.csv --threads 2
 
   regression-clang16-vs-clang14-benchmark-runner:
+     if: >-
+       ${{ github.event_name != 'workflow_dispatch' ||
+           inputs.benchmark_job == '' || inputs.benchmark_job == 'all' ||
+           inputs.benchmark_job == 'regression-clang16-vs-clang14-benchmark-runner' }}
      name: Benchmark runner clang-16 vs clang-14 (OSX)
      runs-on: macos-latest
      env:
@@ -225,6 +243,10 @@ jobs:
          python scripts/regression/test_runner.py --nofail --old duckdb/build/release/benchmark/benchmark_runner --new build/release/benchmark/benchmark_runner --benchmarks .github/regression/imdb.csv --threads 2
 
   regression-clang-benchmark-runner:
+     if: >-
+       ${{ github.event_name != 'workflow_dispatch' ||
+           inputs.benchmark_job == '' || inputs.benchmark_job == 'all' ||
+           inputs.benchmark_job == 'regression-clang-benchmark-runner' }}
      name: Benchmark runner clang vs gcc
      runs-on: ubuntu-latest
      env:
@@ -248,7 +270,7 @@ jobs:
          shell: bash
          run: |
            python3 scripts/ci/retry.py -- make toolsci
-           python3 scripts/ci/retry.py -- sudo apt-get install -y -qq llvm
+           python3 scripts/ci/retry.py -- sudo apt-get install -y -qq llvm-14 clang-14
 
        - uses: ./.github/actions/ccache-action
 
@@ -310,6 +332,10 @@ jobs:
            python scripts/regression/test_runner.py --nofail --old duckdb/build/release/benchmark/benchmark_runner --new build/release/benchmark/benchmark_runner --benchmarks .github/regression/imdb.csv --threads 2
 
   regression-flto-gcc-benchmark-runner:
+     if: >-
+       ${{ github.event_name != 'workflow_dispatch' ||
+           inputs.benchmark_job == '' || inputs.benchmark_job == 'all' ||
+           inputs.benchmark_job == 'regression-flto-gcc-benchmark-runner' }}
      name: Benchmark runner gcc flto vs gcc
      runs-on: ubuntu-latest
      env:
