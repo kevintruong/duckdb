@@ -27,6 +27,9 @@ from scripts.ci import run_tests
 original = run_tests.run_batch
 records = []
 
+def is_skip(event):
+    return 'skip' in event.get('event', '') or event.get('status', '').startswith('skip')
+
 def capture(config, batch):
     assert len(batch) == 1 and config.batch_timeout_seconds == 600
     key = uuid.uuid4().hex
@@ -58,13 +61,13 @@ for record, streams in records:
         for line in text.splitlines():
             if '[TEST_EVENT] ' in line:
                 events.append(json.loads(line.split('[TEST_EVENT] ', 1)[1]))
-    report['events'][path] = [e for e in events if e.get('event') == 'end' or 'skip' in e.get('event', '')]
+    report['events'][path] = [e for e in events if e.get('event') == 'end' or is_skip(e)]
 (OUT / 'replay-result.json').write_text(json.dumps(report, indent=2) + '\n')
 if result == 0:
     assert set(report['events']) == set(EXPECTED)
     for path, events in report['events'].items():
-        ends = [e for e in events if e.get('event') == 'end' and e.get('passes', 0) > 0 and e.get('fails') == 0]
-        skips = [e for e in events if 'skip' in e.get('event', '')]
+        ends = [e for e in events if e.get('event') == 'end' and e.get('status') == 'ok' and e.get('passes', 0) > 0 and e.get('fails') == 0]
+        skips = [e for e in events if is_skip(e)]
         if path.endswith('hash_join_residual_predicates.test'):
             assert skips and all('tpch' in json.dumps(e).lower() for e in skips), (path, events)
             continue
