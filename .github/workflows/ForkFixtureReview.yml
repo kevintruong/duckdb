@@ -1,0 +1,75 @@
+name: Fork Fixture Review Revision
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths:
+      - .github/workflows/ForkFixtureReview.yml
+      - .github/scripts/fixture_review_check.py
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+env:
+  FIXTURE_COMMIT: f571f73a17a3cbf00b98fbfee28c3d70612bae83
+jobs:
+  windows32:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve verification helper
+        shell: bash
+        run: cp .github/scripts/fixture_review_check.py "$RUNNER_TEMP/fixture_review_check.py"
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.FIXTURE_COMMIT }}
+          fetch-depth: 3
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v7
+        with:
+          name: fixture-windows32-binaries
+          run-id: 42313956408
+          github-token: ${{ github.token }}
+      - name: Verify intentional architecture gate and active32-bit coverage
+        shell: bash
+        run: python "$RUNNER_TEMP/fixture_review_check.py" windows32
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reviewed-fixture-windows32
+          path: review-platform-evidence
+          if-no-files-found: error
+  linux64-vector2:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/ubuntu_24_04_amd64_compat:20260923-ade72a46
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve verification helper
+        run: cp .github/scripts/fixture_review_check.py "$RUNNER_TEMP/fixture_review_check.py"
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.FIXTURE_COMMIT }}
+          fetch-depth: 3
+      - uses: actions/download-artifact@v7
+        with:
+          name: fixture-vector2-binaries
+          run-id: 42313956408
+          github-token: ${{ github.token }}
+          path: build/reldebug
+      - name: Verify original large inputs execute on64-bit with vector size2
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          chmod +x build/reldebug/test/unittest
+          python3 "$RUNNER_TEMP/fixture_review_check.py" linux64
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reviewed-fixture-linux64-vector2
+          path: review-platform-evidence
+          if-no-files-found: error
