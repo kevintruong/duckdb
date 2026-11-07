@@ -54,12 +54,14 @@ if MODE == 'windows':
         path.write_bytes(subprocess.check_output(['git', 'show', BASE + ':' + FILES[0]]))
         old = run('old-unnest', [str(BIN), FILES[0]])
         assert old.returncode != 0 and b'Allocation failure' in old.stdout + old.stderr, 'Old fixture did not reproduce the historical OOM'
+        assert b'unnest_string_constant_reference.test:13' in old.stdout + old.stderr
+        assert b"CREATE TABLE unnested AS SELECT id, s, unnest(range(5000)) AS i, {'s': s, 'i': id} AS st FROM strs;" in old.stdout + old.stderr
     finally:
         path.write_bytes(fixed)
 
 if MODE in ('windows', 'vector'):
     if MODE == 'vector':
-        cache = Path('build/reldebug/CMakeCache.txt').read_text()
+        cache = Path('build/reldebug/CMakeCache.txt').read_text().splitlines()
         assert 'STANDARD_VECTOR_SIZE:STRING=2' in cache or 'STANDARD_VECTOR_SIZE:UNINITIALIZED=2' in cache
     focused = run('fixed-focused', [str(BIN), ','.join(FILES) + ',A constant reference*', '--emit-test-events'])
     assert focused.returncode == 0
