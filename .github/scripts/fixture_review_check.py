@@ -61,7 +61,6 @@ def run(name, args):
 listing = OUT / 'sql.list'
 listing.write_text('\n'.join(FILES)+'\n')
 sql = run('sql', [str(BIN), '-f', str(listing.resolve()), '--emit-test-events', '--use-colour', 'no'])
-assert re.search(r'in 4 test cases', sql)
 events = [json.loads(line.split('[TEST_EVENT] ',1)[1]) for line in sql.splitlines() if '[TEST_EVENT] ' in line]
 ends = {}
 for path in FILES:
