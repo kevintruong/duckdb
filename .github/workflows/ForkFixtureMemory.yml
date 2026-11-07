@@ -1,0 +1,43 @@
+name: Fork Windows32 Fixture Memory
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths:
+      - .github/workflows/ForkFixtureMemory.yml
+      - .github/scripts/fixture_memory_windows.py
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  memory:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve measurement helper
+        shell: bash
+        run: cp .github/scripts/fixture_memory_windows.py "$RUNNER_TEMP/fixture_memory_windows.py"
+      - uses: actions/checkout@v6
+        with:
+          ref: a662f0340baa5955b2331aeb7ff7bae120657e79
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v7
+        with:
+          name: fixture-windows32-binaries
+          run-id: 42313956408
+          github-token: ${{ github.token }}
+      - name: Measure original and fixed CTAS on the same preserved Windows32 CLI
+        shell: bash
+        run: python "$RUNNER_TEMP/fixture_memory_windows.py"
+      - name: Preserve native memory evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-windows32-memory
+          path: fixture-memory
+          if-no-files-found: error
