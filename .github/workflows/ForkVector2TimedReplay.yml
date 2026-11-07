@@ -1,0 +1,47 @@
+name: Fork Vector2 Timed Batch Replay
+on:
+  push:
+    branches: [v2.1-28265-ci]
+    paths:
+      - .github/workflows/ForkVector2TimedReplay.yml
+      - .github/scripts/fixture_vector2_timed_replay.py
+      - .github/scripts/fixture_vector2_timed_replay.list
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  replay:
+    if: github.repository == 'kevintruong/duckdb'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    container:
+      image: ghcr.io/duckdb/duckdb-ci/ubuntu_24_04_amd64_compat:20260923-ade72a46
+    steps:
+      - uses: actions/checkout@v6
+      - name: Preserve replay inputs
+        run: |
+          cp .github/scripts/fixture_vector2_timed_replay.py "$RUNNER_TEMP/fixture_vector2_timed_replay.py"
+          cp .github/scripts/fixture_vector2_timed_replay.list "$RUNNER_TEMP/fixture_vector2_timed_replay.list"
+      - uses: actions/checkout@v6
+        with:
+          ref: a662f0340baa5955b2331aeb7ff7bae120657e79
+          fetch-depth: 2
+      - uses: actions/download-artifact@v7
+        with:
+          name: fixture-vector2-binaries
+          run-id: 42313956408
+          github-token: ${{ github.token }}
+          path: build/reldebug
+      - name: Replay each file with the existing 600-second budget
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          chmod +x build/reldebug/test/unittest
+          python3 "$RUNNER_TEMP/fixture_vector2_timed_replay.py"
+      - name: Preserve replay evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-vector2-timed-replay
+          path: fixture-replay
+          if-no-files-found: error

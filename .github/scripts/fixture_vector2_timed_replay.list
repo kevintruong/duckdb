@@ -1,0 +1,13 @@
+test/sql/join/hash_join/hash_join_dict_surviving_computed_build.test
+test/sql/join/hash_join/hash_join_dictionary_probe.test
+test/sql/join/hash_join/hash_join_dict_surviving.test
+test/sql/join/hash_join/hash_join_residual_predicates.test
+test/sql/join/hash_join/hash_join_local_build.test
+test/sql/join/pushdown/pushdown_generated_columns.test
+test/sql/join/pushdown/pushdown_join_types.test
+test/sql/join/pushdown/pushdown_many_joins.test
+test/sql/join/pair_dependent_full_outer_join_subquery_cte.test
+test/sql/join/external/external_join_runtime_filter.test
+test/sql/cte/materialized/cte_runtime_filter_modes.test
+test/sql/cte/materialized/cte_runtime_filter_sibling_dependencies.test
+test/sql/unnest/unnest_string_constant_reference.test
