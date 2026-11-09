@@ -143,8 +143,7 @@ optional_ptr<LogicalGet> RowGroupPruner::FindLogicalGet(const LogicalOrder &logi
 	}
 
 	auto &pushed_column = pushdown_targets[0].columns[0];
-	if (pushed_column.mode != JoinFilterPushdownMode::RECONSTRUCT_EXPRESSION ||
-	    !pushed_column.struct_extract_path.empty() || RuntimeFilterCastUtil::RuntimeFilterUsesTryCast(pushed_column)) {
+	if (!RuntimeFilterCastUtil::PreservesStorageOrdering(pushed_column)) {
 		// Field extractions and casts that can fail cannot use the raw column's ordering statistics.
 		return nullptr;
 	}
