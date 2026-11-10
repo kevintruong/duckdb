@@ -446,6 +446,7 @@ jobs:
     with:
       duckdb_version: ${{ needs.prepare.outputs.duckdb_version }}
       duckdb_commit: ${{ needs.prepare.outputs.duckdb_commit }}
+      duckdb_repository: ${{ github.repository }}
       image_version: ${{ needs.prepare.outputs.image_version }}
       groups: |
         core:
