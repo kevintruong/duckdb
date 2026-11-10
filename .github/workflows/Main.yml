@@ -1278,7 +1278,8 @@ jobs:
 
       - name: Test
         if: ${{ !fromJson(needs.prepare.outputs.skip_tests) }}
-        run: make unittest_reldebug
+        # Give each file its own timeout budget at vector size 2.
+        run: make unittest_reldebug T=--batch-size=1
 
  threadsan:
     name: Thread Sanitizer
