@@ -1,0 +1,336 @@
+diff --git a/test/sql/connection_caching.test b/test/sql/connection_caching.test
+index e79cf08..69b16ce 100644
+--- a/test/sql/connection_caching.test
++++ b/test/sql/connection_caching.test
+@@ -2,6 +2,9 @@
+ # description: Test connection caching behavior
+ # group: [sql]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ require parquet
+diff --git a/test/sql/connection_caching_default.test b/test/sql/connection_caching_default.test
+index e304bab..7bf1b56 100644
+--- a/test/sql/connection_caching_default.test
++++ b/test/sql/connection_caching_default.test
+@@ -2,6 +2,9 @@
+ # description: Connection caching is enabled by default (no SET required)
+ # group: [sql]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ require parquet
+diff --git a/test/sql/copy/parquet/parquet_encryption_httpfs.test b/test/sql/copy/parquet/parquet_encryption_httpfs.test
+index e679080..cbd3bc1 100644
+--- a/test/sql/copy/parquet/parquet_encryption_httpfs.test
++++ b/test/sql/copy/parquet/parquet_encryption_httpfs.test
+@@ -2,6 +2,9 @@
+ # description: Test Parquet encryption with OpenSSL
+ # group: [parquet]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require parquet
+ 
+ require httpfs
+diff --git a/test/sql/copy/parquet/parquet_encryption_mbedtls_openssl.test b/test/sql/copy/parquet/parquet_encryption_mbedtls_openssl.test
+index b4057ff..726bc05 100644
+--- a/test/sql/copy/parquet/parquet_encryption_mbedtls_openssl.test
++++ b/test/sql/copy/parquet/parquet_encryption_mbedtls_openssl.test
+@@ -2,6 +2,9 @@
+ # description: Test Parquet encryption with OpenSSL
+ # group: [parquet]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require parquet
+ 
+ require httpfs
+diff --git a/test/sql/httpfs/ca_cert_file.test b/test/sql/httpfs/ca_cert_file.test
+index 01e57d1..4fea55c 100644
+--- a/test/sql/httpfs/ca_cert_file.test
++++ b/test/sql/httpfs/ca_cert_file.test
+@@ -2,6 +2,9 @@
+ # description: Test that invalid ca_cert_file causes SSL connection to fail
+ # group: [httpfs]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ query I
+diff --git a/test/sql/s3/connection_caching_s3.test b/test/sql/s3/connection_caching_s3.test
+index c82f075..9928c45 100644
+--- a/test/sql/s3/connection_caching_s3.test
++++ b/test/sql/s3/connection_caching_s3.test
+@@ -2,6 +2,9 @@
+ # description: Test connection caching with S3 on a public bucket
+ # group: [s3]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require parquet
+ 
+ require httpfs
+diff --git a/test/sql/secret/gcs_oauth.test b/test/sql/secret/gcs_oauth.test
+index 9ea458f..66aa5ef 100644
+--- a/test/sql/secret/gcs_oauth.test
++++ b/test/sql/secret/gcs_oauth.test
+@@ -2,6 +2,9 @@
+ # description: Test GCS OAuth2 bearer token support
+ # group: [secret]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ 
+diff --git a/test/sql/secrets/create_secret_binding.test b/test/sql/secrets/create_secret_binding.test
+index 493c758..71acaf1 100644
+--- a/test/sql/secrets/create_secret_binding.test
++++ b/test/sql/secrets/create_secret_binding.test
+@@ -2,6 +2,9 @@
+ # description: Test secret binding & types
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ # Ensure any currently stored secrets don't interfere with the test
+diff --git a/test/sql/secrets/create_secret_defaults.test b/test/sql/secrets/create_secret_defaults.test
+index b73fc00..e25e450 100644
+--- a/test/sql/secrets/create_secret_defaults.test
++++ b/test/sql/secrets/create_secret_defaults.test
+@@ -2,6 +2,9 @@
+ # description: Test default values during secret creation
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ # Ensure any currently stored secrets don't interfere with the test
+diff --git a/test/sql/secrets/create_secret_hffs.test b/test/sql/secrets/create_secret_hffs.test
+index a55db62..535dae4 100644
+--- a/test/sql/secrets/create_secret_hffs.test
++++ b/test/sql/secrets/create_secret_hffs.test
+@@ -2,6 +2,9 @@
+ # description: Test huggingface secrets
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ statement ok
+diff --git a/test/sql/secrets/create_secret_name_conflicts.test b/test/sql/secrets/create_secret_name_conflicts.test
+index c7fd2e1..fa30e1f 100644
+--- a/test/sql/secrets/create_secret_name_conflicts.test
++++ b/test/sql/secrets/create_secret_name_conflicts.test
+@@ -2,6 +2,9 @@
+ # description: Test name conflict behaviour for secrets
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/persistent_secrets.db
+ 
+ require httpfs
+diff --git a/test/sql/secrets/create_secret_non_writable_persistent_dir.test b/test/sql/secrets/create_secret_non_writable_persistent_dir.test
+index 09b7547..c416e9d 100644
+--- a/test/sql/secrets/create_secret_non_writable_persistent_dir.test
++++ b/test/sql/secrets/create_secret_non_writable_persistent_dir.test
+@@ -2,6 +2,9 @@
+ # description: Test persistent secrets when the secret dir is non-writable
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/create_secret_non_writable_persistent_dir.db
+ 
+ require httpfs
+diff --git a/test/sql/secrets/create_secret_overwriting.test b/test/sql/secrets/create_secret_overwriting.test
+index 684b6ce..a44f140 100644
+--- a/test/sql/secrets/create_secret_overwriting.test
++++ b/test/sql/secrets/create_secret_overwriting.test
+@@ -2,6 +2,9 @@
+ # description: Test secret overwriting and deleting
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ # Ensure any currently stored secrets don't interfere with the test
+diff --git a/test/sql/secrets/create_secret_persistence.test b/test/sql/secrets/create_secret_persistence.test
+index e02dcac..c43deaa 100644
+--- a/test/sql/secrets/create_secret_persistence.test
++++ b/test/sql/secrets/create_secret_persistence.test
+@@ -2,6 +2,9 @@
+ # description: Test secret persistence
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/persistent_secrets.db
+ 
+ require httpfs
+diff --git a/test/sql/secrets/create_secret_persistence_error_handling.test b/test/sql/secrets/create_secret_persistence_error_handling.test
+index 29815f8..e2b2083 100644
+--- a/test/sql/secrets/create_secret_persistence_error_handling.test
++++ b/test/sql/secrets/create_secret_persistence_error_handling.test
+@@ -2,6 +2,9 @@
+ # description: Test secret persistence with buggy secrets
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/create_secret_persistence_error_handling.db
+ 
+ require httpfs
+diff --git a/test/sql/secrets/create_secret_r2.test b/test/sql/secrets/create_secret_r2.test
+index 785acaf..f66873f 100644
+--- a/test/sql/secrets/create_secret_r2.test
++++ b/test/sql/secrets/create_secret_r2.test
+@@ -2,6 +2,9 @@
+ # description: Test secret creation using the default r2 secret provider
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ statement ok
+diff --git a/test/sql/secrets/create_secret_r2_serialization.test b/test/sql/secrets/create_secret_r2_serialization.test
+index b54d8a1..6b2f844 100644
+--- a/test/sql/secrets/create_secret_r2_serialization.test
++++ b/test/sql/secrets/create_secret_r2_serialization.test
+@@ -4,6 +4,9 @@
+ 
+ # NOTE: this is a testing feature that will be removed / replaced with actual persistent secrets.
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ require parquet
+diff --git a/test/sql/secrets/create_secret_s3_serialization.test b/test/sql/secrets/create_secret_s3_serialization.test
+index c1ed785..3064af5 100644
+--- a/test/sql/secrets/create_secret_s3_serialization.test
++++ b/test/sql/secrets/create_secret_s3_serialization.test
+@@ -2,6 +2,9 @@
+ # description: Test serialization of the S3/GCS/r2 secrets
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ require parquet
+diff --git a/test/sql/secrets/create_secret_scope_matching.test b/test/sql/secrets/create_secret_scope_matching.test
+index 598b3c2..6de5028 100644
+--- a/test/sql/secrets/create_secret_scope_matching.test
++++ b/test/sql/secrets/create_secret_scope_matching.test
+@@ -2,6 +2,9 @@
+ # description: Test scope matching behaviour is correct
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/create_secret_scope_matching.db
+ 
+ 
+diff --git a/test/sql/secrets/create_secret_settings.test b/test/sql/secrets/create_secret_settings.test
+index f420476..e1554de 100644
+--- a/test/sql/secrets/create_secret_settings.test
++++ b/test/sql/secrets/create_secret_settings.test
+@@ -2,6 +2,9 @@
+ # description: Test setting secret settings
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/secrets_settings.db
+ 
+ require httpfs
+diff --git a/test/sql/secrets/create_secret_storage_backends.test b/test/sql/secrets/create_secret_storage_backends.test
+index 2eace42..12d7802 100644
+--- a/test/sql/secrets/create_secret_storage_backends.test
++++ b/test/sql/secrets/create_secret_storage_backends.test
+@@ -2,6 +2,9 @@
+ # description: Test different storage backends
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ load {TEST_DIR}/create_secret_storage_backends.db
+ 
+ 
+diff --git a/test/sql/secrets/create_secret_transactional.test b/test/sql/secrets/create_secret_transactional.test
+index 7ccfd91..1a0cde1 100644
+--- a/test/sql/secrets/create_secret_transactional.test
++++ b/test/sql/secrets/create_secret_transactional.test
+@@ -2,6 +2,9 @@
+ # description: Test secret transactional safety
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ load {TEST_DIR}/create_secret_transactional.db
+diff --git a/test/sql/secrets/s3_url_scheme_aliases.test b/test/sql/secrets/s3_url_scheme_aliases.test
+index 3ee8182..f899921 100644
+--- a/test/sql/secrets/s3_url_scheme_aliases.test
++++ b/test/sql/secrets/s3_url_scheme_aliases.test
+@@ -2,6 +2,9 @@
+ # description: Test the s3_url_scheme_aliases setting (using oss:// as an example scheme)
+ # group: [secrets]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require httpfs
+ 
+ # FIXME: s3_url_scheme_aliases is not yet in duckdb's autoload registry
+diff --git a/test/sql/storage/external_file_cache/external_file_cache_httpfs.test b/test/sql/storage/external_file_cache/external_file_cache_httpfs.test
+index 0b1e70a..3c325dc 100644
+--- a/test/sql/storage/external_file_cache/external_file_cache_httpfs.test
++++ b/test/sql/storage/external_file_cache/external_file_cache_httpfs.test
+@@ -2,6 +2,9 @@
+ # description: Test the external file cache for HTTPFS reads
+ # group: [external_file_cache]
+ 
++# Keep instance state; explicit restarts still execute.
++require skip_reload
++
+ require parquet
+ 
+ require httpfs

@@ -1,5 +1,6 @@
 
 #include "sqllogic_test_runner.hpp"
+#include "http_test_server.hpp"
 
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/file_open_flags.hpp"
@@ -643,6 +644,18 @@ RequireResult SQLLogicTestRunner::CheckRequire(SQLLogicParser &parser, const vec
 
 	if (param == "skip_reload") {
 		skip_reload = true;
+		return RequireResult::PRESENT;
+	}
+	if (param == "http_test_server") {
+		if (params.size() != 2) {
+			parser.Fail("require http_test_server requires a fixture file");
+		}
+		auto path = Path::FromString(params[1]);
+		if (!path.IsAbsolute()) {
+			path = Path::FromString(file_name).Parent().Join(path);
+		}
+		http_test_server = make_uniq<SQLLogicHTTPServer>(path.ToString());
+		environment_variables["HTTP_TEST_SERVER_URL"] = http_test_server->GetURL();
 		return RequireResult::PRESENT;
 	}
 

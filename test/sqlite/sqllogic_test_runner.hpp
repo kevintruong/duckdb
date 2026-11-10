@@ -20,6 +20,7 @@ namespace duckdb {
 class Command;
 class LoopCommand;
 class SQLLogicParser;
+class SQLLogicHTTPServer;
 
 enum class RequireResult { PRESENT, MISSING };
 
@@ -160,6 +161,8 @@ private:
 	static void AddSkipReason(const string &reason);
 
 private:
+	unique_ptr<SQLLogicHTTPServer> http_test_server;
+
 	//! The TEMP_DIR the harness assigned this test, snapshotted by EmitBegin. All events report it, so
 	//! a body that rewrites TEMP_DIR via test-env cannot make them name different invocations.
 	string emit_temp_dir;

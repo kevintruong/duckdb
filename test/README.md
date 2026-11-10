@@ -62,6 +62,19 @@ counts as present. Values are literal tokens: commas, `!`, and `not` have no spe
 meaning. Each directive applies to the whole test and cannot appear inside a loop.
 Existing `require-env NAME` and `require-env NAME VALUE` tests retain their behavior.
 
+### Local HTTP fixtures
+
+`require http_test_server <fixture-file>` starts a loopback server for the test and
+provides its URL as `{HTTP_TEST_SERVER_URL}`. The fixture path is relative to the
+SQL test file. HEAD responses omit `Content-Length`; GET responses stream the file
+with chunked encoding. Setup errors fail the test instead of skipping it. The
+runner owns the server and stops it when the test ends.
+
+Use distinct URL query strings for different HTTP clients to prevent downloaded
+file caches from sharing their requests. Tests that inspect HTTP logs should use
+`require skip_reload` to keep those logs between records; explicit `restart`
+commands still execute.
+
 ### Data directory
 
 `DATA_DIR` is where tests read fixture data from (`{DATA_DIR}` in tests). Set it with `--data-dir <path>`, `DUCKDB_TEST_DATA_DIR=<path>`, a `data_dir` config option.
