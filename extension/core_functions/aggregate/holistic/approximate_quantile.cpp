@@ -632,7 +632,11 @@ unique_ptr<FunctionData> ApproxQuantileDecimalDeserialize(Deserializer &deserial
                                                           BoundAggregateFunction &function) {
 	auto bind_data = ApproximateQuantileBindData::Deserialize(deserializer, function);
 	auto &return_type = deserializer.Get<const LogicalType &>();
-	if (return_type.id() == LogicalTypeId::LIST) {
+	auto &children = deserializer.Get<const const_expression_list_t &>();
+	if (return_type.IsIntegral() && children.size() == 1 && children[0].get().GetReturnType() == return_type) {
+		// Legacy decimal plans can aggregate a cast to the physical integer type.
+		ReplaceApproxQuantileImplementation(function, ApproxQuantileDecimalFunction(return_type));
+	} else if (return_type.id() == LogicalTypeId::LIST) {
 		ReplaceApproxQuantileImplementation(function, ApproxQuantileDecimalListFunction(function.GetArguments()[0]));
 	} else {
 		ReplaceApproxQuantileImplementation(function, ApproxQuantileDecimalFunction(function.GetArguments()[0]));
