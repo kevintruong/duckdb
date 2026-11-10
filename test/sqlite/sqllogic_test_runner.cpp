@@ -4,6 +4,7 @@
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/file_open_flags.hpp"
 #include "duckdb/common/json_document.hpp"
+#include "duckdb/common/path.hpp"
 #include "duckdb/common/virtual_file_system.hpp"
 #include "duckdb/common/types/uuid.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
@@ -29,7 +30,12 @@ SQLLogicTestRunner::SQLLogicTestRunner(string dbpath) : dbpath(std::move(dbpath)
 	config = GetTestConfig();
 	config->SetOptionByName("allow_unredacted_secrets", true);
 	config->options.load_extensions = false;
-	test_dir_prefix = TestDirectoryPath();
+	auto test_dir = Path::FromString(TestMakeAbsolute(TestDirectoryPath(), TestGetCurrentDirectory()));
+	test_dir_prefix = test_dir.ToString();
+	D_ASSERT(!test_dir_prefix.empty());
+	if (test_dir_prefix.back() != test_dir.GetSeparator()) {
+		test_dir_prefix += test_dir.GetSeparator();
+	}
 
 	auto &test_config = TestConfiguration::Get();
 	autoloading_mode = test_config.GetExtensionAutoLoadingMode();
@@ -327,7 +333,9 @@ NewDatabaseConnection SQLLogicTestRunner::CreateDatabase(const string &db_path, 
 }
 
 void SQLLogicTestRunner::LoadDatabase(string dbpath, bool load_extensions) {
-	loaded_databases.push_back(dbpath);
+	if (!DBConfig::IsInMemoryDatabase(dbpath.c_str())) {
+		loaded_databases.push_back(Path::Normalize(TestMakeAbsolute(dbpath, TestGetCurrentDirectory())));
+	}
 
 	// restart the database with the specified db path
 	db.reset();
