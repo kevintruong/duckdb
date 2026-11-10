@@ -1,0 +1,23 @@
+diff --git a/test/sql/logging/http_logging.test b/test/sql/logging/http_logging.test
+index f11cca7..d723e4c 100644
+--- a/test/sql/logging/http_logging.test
++++ b/test/sql/logging/http_logging.test
+@@ -17,3 +17,4 @@ FROM 'https://github.com/duckdb/duckdb/raw/main/data/csv/customer.csv'
+ query IIII
+-SELECT
++-- Statement verification can bind the scan more than once.
++SELECT DISTINCT
+ 	request.type,
+@@ -23,2 +24,3 @@ SELECT
+ FROM duckdb_logs_parsed('HTTP') WHERE response.status != 'ServiceUnavailable_503' AND response.status != 'TooManyRequests_429'
++ORDER BY request.type DESC
+ ----
+@@ -28,1 +30,8 @@ GET	https://github.com/duckdb/duckdb/raw/main/data/csv/customer.csv	PartialConte
++query I
++SELECT count(*)
++FROM duckdb_logs_parsed('HTTP')
++WHERE request.type='GET'
++----
++1
++
+ query II
