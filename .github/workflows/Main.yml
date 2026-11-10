@@ -1112,7 +1112,7 @@ jobs:
       duckdb_commit: ${{ needs.prepare.outputs.duckdb_commit }}
       duckdb_version: ${{ needs.prepare.outputs.duckdb_version }}
       is_release_build: ${{ fromJson(needs.prepare.outputs.is_release_build) }}
-      runner_macos_arm64: ${{ needs.prepare.outputs.runner_macos_14_arm64 }}
+      runner_macos_arm64: ${{ needs.prepare.outputs.runner_provider == 'github' && 'macos-15' || needs.prepare.outputs.runner_macos_14_arm64 }}
       runner_provider: ${{ needs.prepare.outputs.runner_provider }}
 
  windows:
@@ -1288,6 +1288,8 @@ jobs:
     runs-on: ${{ needs.prepare.outputs.runner_linux_x64 }}
     container:
       image: ${{ fromJson(needs.prepare.outputs.images).manylinux_amd64_main }}
+      # TSan needs to disable ASLR when re-executing on GitHub-hosted runners.
+      options: ${{ needs.prepare.outputs.runner_provider == 'github' && '--security-opt seccomp=unconfined' || '' }}
     env:
       DUCKDB_VERSION: ${{ needs.prepare.outputs.duckdb_version }}
       DUCKDB_COMMIT: ${{ needs.prepare.outputs.duckdb_commit }}
