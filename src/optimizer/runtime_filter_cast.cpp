@@ -43,7 +43,7 @@ bool RuntimeFilterCastUtil::IsBuiltinCast(const Expression &expr) {
 		return false;
 	}
 	CastFunctionSet default_casts;
-	GetCastFunctionInput input;
+	auto input = GetCastFunctionInput::Default();
 	auto default_cast =
 	    default_casts.GetCastFunction(BoundCastExpression::Child(cast).GetReturnType(), cast.GetReturnType(), input);
 	return !default_cast.GetCastData() &&
