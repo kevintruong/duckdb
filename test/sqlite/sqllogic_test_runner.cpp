@@ -1,11 +1,9 @@
 
 #include "sqllogic_test_runner.hpp"
-#include "http_test_server.hpp"
 
 #include "duckdb/common/file_system.hpp"
 #include "duckdb/common/file_open_flags.hpp"
 #include "duckdb/common/json_document.hpp"
-#include "duckdb/common/path.hpp"
 #include "duckdb/common/virtual_file_system.hpp"
 #include "duckdb/common/types/uuid.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
@@ -31,12 +29,7 @@ SQLLogicTestRunner::SQLLogicTestRunner(string dbpath) : dbpath(std::move(dbpath)
 	config = GetTestConfig();
 	config->SetOptionByName("allow_unredacted_secrets", true);
 	config->options.load_extensions = false;
-	auto test_dir = Path::FromString(TestMakeAbsolute(TestDirectoryPath(), TestGetCurrentDirectory()));
-	test_dir_prefix = test_dir.ToString();
-	D_ASSERT(!test_dir_prefix.empty());
-	if (test_dir_prefix.back() != test_dir.GetSeparator()) {
-		test_dir_prefix += test_dir.GetSeparator();
-	}
+	test_dir_prefix = TestDirectoryPath();
 
 	auto &test_config = TestConfiguration::Get();
 	autoloading_mode = test_config.GetExtensionAutoLoadingMode();
@@ -334,9 +327,7 @@ NewDatabaseConnection SQLLogicTestRunner::CreateDatabase(const string &db_path, 
 }
 
 void SQLLogicTestRunner::LoadDatabase(string dbpath, bool load_extensions) {
-	if (!DBConfig::IsInMemoryDatabase(dbpath.c_str())) {
-		loaded_databases.push_back(Path::Normalize(TestMakeAbsolute(dbpath, TestGetCurrentDirectory())));
-	}
+	loaded_databases.push_back(dbpath);
 
 	// restart the database with the specified db path
 	db.reset();
@@ -645,18 +636,6 @@ RequireResult SQLLogicTestRunner::CheckRequire(SQLLogicParser &parser, const vec
 		skip_reload = true;
 		return RequireResult::PRESENT;
 	}
-	if (param == "http_test_server") {
-		if (params.size() != 2) {
-			parser.Fail("require http_test_server requires a fixture file");
-		}
-		auto path = Path::FromString(params[1]);
-		if (!path.IsAbsolute()) {
-			path = Path::FromString(file_name).Parent().Join(path);
-		}
-		http_test_server = make_uniq<SQLLogicHTTPServer>(path.ToString());
-		environment_variables["HTTP_TEST_SERVER_URL"] = http_test_server->GetURL();
-		return RequireResult::PRESENT;
-	}
 
 	if (param == "no_alternative_verify") {
 #ifdef DUCKDB_ALTERNATIVE_VERIFY
@@ -847,7 +826,7 @@ void SQLLogicTestRunner::ConfigureDefaultInMemoryTemporaryDirectory(DuckDB &data
 	auto temp_directory_name = StringUtil::Replace(normalized_script, "/", "_");
 	// an absolute Windows path has a drive colon, which a directory name cannot contain
 	temp_directory_name = StringUtil::Replace(temp_directory_name, ":", "_");
-	auto temp_directory = TestJoinPath(ReplaceKeywords("{TEST_DIR}"), "sqllogic_temp_" + temp_directory_name);
+	auto temp_directory = TestJoinPath(TestDirectoryPath(), "sqllogic_temp_" + temp_directory_name);
 	db_config.SetOption(database.instance.get(), *DBConfig::GetOptionByName("temp_directory"), temp_directory);
 }
 

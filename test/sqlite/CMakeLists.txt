@@ -1,5 +1,4 @@
 set(SQLITE_TEST_RUNNER_SOURCES
-    http_test_server.cpp
     result_helper.cpp
     sqllogic_command.cpp
     sqllogic_test_runner.cpp

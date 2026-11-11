@@ -48,7 +48,7 @@ string CreateSecretInfo::ToString() const {
 		result += " " + SQLIdentifier(GetSecretName());
 	}
 	if (!storage_type.empty()) {
-		result += " IN " + SQLIdentifier(storage_type);
+		result += " IN" + SQLIdentifier(storage_type);
 	}
 	string option_list;
 	if (provider) {

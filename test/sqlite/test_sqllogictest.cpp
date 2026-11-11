@@ -77,9 +77,6 @@ static void RunSQLLogicTest(const string &name, optional_ptr<std::istream> input
 			TestCreateDirectory(total_path);
 		}
 	}
-	if (!input && AUTO_SWITCH_TEST_DIR && !DBConfig::IsInMemoryDatabase(initial_dbpath.c_str())) {
-		initial_dbpath = TestMakeAbsolute(initial_dbpath, TestGetCurrentDirectory());
-	}
 	SQLLogicTestRunner runner(std::move(initial_dbpath));
 	runner.output_sql = Catch::getCurrentContext().getConfig()->outputSQL();
 

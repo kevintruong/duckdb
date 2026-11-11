@@ -33,14 +33,6 @@ string DropInfo::ToString() const {
 		result += SQLIdentifier(GetQualifiedName().Name());
 	} else {
 		result += "DROP";
-		if (type == CatalogType::SECRET_ENTRY && extra_drop_info) {
-			auto &secret_info = extra_drop_info->Cast<ExtraDropSecretInfo>();
-			if (secret_info.persist_mode == SecretPersistType::TEMPORARY) {
-				result += " TEMPORARY";
-			} else if (secret_info.persist_mode == SecretPersistType::PERSISTENT) {
-				result += " PERSISTENT";
-			}
-		}
 		result += " " + ParseInfo::TypeToString(type);
 		if (if_not_found == OnEntryNotFound::RETURN_NULL) {
 			result += " IF EXISTS";
