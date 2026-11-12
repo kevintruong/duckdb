@@ -35,6 +35,8 @@ public:
 	//! selected - evaluating it on the distinct values of a segment (a dictionary, the RLE runs) would raise errors
 	//! for rows that another filter already removed
 	bool can_throw = false;
+	//! Whether results can be cached after evaluating distinct dictionary or run values.
+	bool can_cache = false;
 
 public:
 	template <class TARGET>

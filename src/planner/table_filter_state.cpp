@@ -10,6 +10,7 @@
 #include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
 #include "duckdb/planner/expression/bound_reference_expression.hpp"
+#include "duckdb/planner/expression_iterator.hpp"
 #include "duckdb/planner/filter/expression_filter.hpp"
 #include "duckdb/planner/filter/table_filter_functions.hpp"
 
@@ -23,8 +24,36 @@ static void InitializeExecutor(Context &context, const Expression &expression, E
 	state.executor->AddExpression(expression);
 }
 
+static bool CanCacheExpressionResult(const Expression &expression) {
+	if (expression.GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
+		auto &function = expression.Cast<BoundFunctionExpression>();
+		const auto &name = function.Function().GetName();
+		if (name == SelectivityOptionalFilterScalarFun::NAME || name == DynamicFilterScalarFun::NAME) {
+			return false;
+		}
+		if (function.BindInfo()) {
+			if (name == BloomFilterScalarFun::NAME &&
+			    function.BindInfo()->Cast<BloomFilterFunctionData>().n_vectors_to_check != 0) {
+				return false;
+			}
+			if (name == PrefixRangeScalarFun::NAME &&
+			    function.BindInfo()->Cast<PrefixRangeFunctionData>().n_vectors_to_check != 0) {
+				return false;
+			}
+		}
+	}
+	bool can_cache = true;
+	ExpressionIterator::EnumerateChildren(expression, [&](const Expression &child) {
+		if (can_cache) {
+			can_cache = CanCacheExpressionResult(child);
+		}
+	});
+	return can_cache;
+}
+
 ExpressionFilterState::ExpressionFilterState(Context &context, const Expression &expression) {
 	can_throw = expression.CanThrow();
+	can_cache = !can_throw && !expression.IsVolatile() && CanCacheExpressionResult(expression);
 	fast_executor = TryCreateFastExecutor(expression, false);
 	InitializeExecutor(context, expression, *this);
 }
