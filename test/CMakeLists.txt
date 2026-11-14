@@ -97,6 +97,38 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux"
   add_dependencies(unittest block_allocator_fault_injection)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux"
+   AND NOT CMAKE_CROSSCOMPILING
+   AND NOT MUSL_ENABLED
+   AND NOT DISABLE_THREADS
+   AND ENABLE_UNITTEST_CPP_TESTS
+   AND TARGET duckdb)
+  include(CheckCXXSourceCompiles)
+  check_cxx_source_compiles(
+    "#include <malloc.h>
+#ifndef __GLIBC__
+#error glibc is required
+#endif
+int main() { return malloc_trim(0); }"
+    DUCKDB_TEST_HAVE_GLIBC_MALLOC_TRIM)
+  if(DUCKDB_TEST_HAVE_GLIBC_MALLOC_TRIM)
+    # Wrap only this executable's libc calls, leaving the library unchanged.
+    add_executable(
+      allocator_malloc_trim
+      common/allocator_malloc_trim.cpp ../src/common/allocator/allocator.cpp
+      ../src/common/allocator/allocator_standard.cpp)
+    target_compile_options(allocator_malloc_trim
+                           PRIVATE -UDUCKDB_ENABLE_JEMALLOC)
+    target_link_libraries(allocator_malloc_trim duckdb pthread)
+    target_link_options(allocator_malloc_trim PRIVATE -Wl,--wrap=malloc_trim
+                        -Wl,--wrap=_ZN6duckdb9TimePoint9GetTickMsEv)
+    set_target_properties(allocator_malloc_trim
+                          PROPERTIES BUILD_RPATH_USE_ORIGIN TRUE)
+    target_sources(unittest PRIVATE common/test_allocator_malloc_trim.cpp)
+    add_dependencies(unittest allocator_malloc_trim)
+  endif()
+endif()
+
 # Enable best-effort stack traces for fatal signals in the test runner without
 # enabling stack traces for every DuckDB exception.
 if((CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT MUSL_ENABLED) OR APPLE)

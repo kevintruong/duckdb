@@ -139,9 +139,11 @@ class PackageReleaseArtifactTest(unittest.TestCase):
             (source / "test").mkdir(parents=True)
             (source / "test" / "unittest").write_bytes(b"unittest")
             (source / "test" / "run").write_text("# runner\n", encoding="utf-8")
-            probe = source / "test" / "block_allocator_fault_injection"
-            probe.write_bytes(b"probe")
-            probe.chmod(0o644)
+            probe_names = ["block_allocator_fault_injection", "allocator_malloc_trim"]
+            for probe_name in probe_names:
+                probe = source / "test" / probe_name
+                probe.write_bytes(probe_name.encode())
+                probe.chmod(0o644)
 
             archive_path = root / "release-artifact.tar.gz"
             self.run_make(
@@ -153,9 +155,10 @@ class PackageReleaseArtifactTest(unittest.TestCase):
             )
 
             with tarfile.open(archive_path, mode="r:gz") as archive:
-                member = archive.getmember("release/test/block_allocator_fault_injection")
-                self.assertEqual(archive.extractfile(member).read(), b"probe")
-                self.assertTrue(member.mode & stat.S_IXUSR)
+                for probe_name in probe_names:
+                    member = archive.getmember(f"release/test/{probe_name}")
+                    self.assertEqual(archive.extractfile(member).read(), probe_name.encode())
+                    self.assertTrue(member.mode & stat.S_IXUSR)
 
     def test_release_artifact_normalizes_windows_layout(self):
         with tempfile.TemporaryDirectory() as temp_dir:

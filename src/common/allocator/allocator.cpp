@@ -4,6 +4,7 @@
 #include "duckdb/common/atomic.hpp"
 #include "duckdb/common/exception.hpp"
 #include "duckdb/common/helper.hpp"
+#include "duckdb/common/mutex.hpp"
 #include "duckdb/common/numeric_utils.hpp"
 #include "duckdb/common/time_point.hpp"
 
@@ -15,7 +16,6 @@
 #endif
 
 #ifdef DUCKDB_DEBUG_ALLOCATION
-#include "duckdb/common/mutex.hpp"
 #include "duckdb/common/pair.hpp"
 #include "duckdb/common/unordered_map.hpp"
 
@@ -186,21 +186,19 @@ Allocator &Allocator::DefaultAllocator() {
 void Allocator::MallocTrim(idx_t pad) {
 #ifdef __GLIBC__
 	static constexpr int64_t TRIM_INTERVAL_MS = 100;
-	static atomic<int64_t> LAST_TRIM_TICK_MS {-TRIM_INTERVAL_MS};
+	static mutex trim_lock;
+	static int64_t last_trim_tick_ms = -TRIM_INTERVAL_MS;
 
-	int64_t last_trim_tick_ms = LAST_TRIM_TICK_MS.load();
-	auto current_tick_ms = TimePoint::GetTickMs();
-
-	if (current_tick_ms - last_trim_tick_ms < TRIM_INTERVAL_MS) {
-		return; // We trimmed less than TRIM_INTERVAL_MS ago
+	unique_lock<mutex> guard(trim_lock, std::try_to_lock);
+	if (!guard.owns_lock()) {
+		return;
 	}
-	if (!LAST_TRIM_TICK_MS.compare_exchange_strong(last_trim_tick_ms, current_tick_ms, std::memory_order_acquire,
-	                                               std::memory_order_relaxed)) {
-		return; // Another thread has updated LAST_TRIM_TICK_MS since we loaded it
+	if (TimePoint::GetTickMs() - last_trim_tick_ms < TRIM_INTERVAL_MS) {
+		return;
 	}
 
-	// We successfully updated LAST_TRIM_TICK_MS, we can trim
 	malloc_trim(pad);
+	last_trim_tick_ms = TimePoint::GetTickMs();
 #endif
 }
 
