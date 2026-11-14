@@ -122,8 +122,10 @@ int main() { return malloc_trim(0); }"
     target_link_libraries(allocator_malloc_trim duckdb pthread)
     target_link_options(allocator_malloc_trim PRIVATE -Wl,--wrap=malloc_trim
                         -Wl,--wrap=_ZN6duckdb9TimePoint9GetTickMsEv)
-    set_target_properties(allocator_malloc_trim
-                          PROPERTIES BUILD_RPATH_USE_ORIGIN TRUE)
+    # Keep the copied allocator's globals separate from the shared library.
+    set_target_properties(
+      allocator_malloc_trim PROPERTIES BUILD_RPATH_USE_ORIGIN TRUE
+                                       CXX_VISIBILITY_PRESET hidden)
     target_sources(unittest PRIVATE common/test_allocator_malloc_trim.cpp)
     add_dependencies(unittest allocator_malloc_trim)
   endif()
