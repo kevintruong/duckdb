@@ -8,6 +8,7 @@
 #include "duckdb/common/unordered_map.hpp"
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/common/vector.hpp"
+#include "duckdb/optimizer/apply_functional_dependencies.hpp"
 #include "duckdb/planner/column_binding.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/planner/logical_operator.hpp"
@@ -206,6 +207,45 @@ void JoinElimination::OptimizeInternal(unique_ptr<LogicalOperator> op) {
 	OptimizeChildren(*pipe_info.root, nullptr, 0);
 }
 
+static bool HasUniqueJoinKey(LogicalComparisonJoin &join, idx_t inner_idx, idx_t outer_idx,
+                             const vector<ColumnBinding> &inner_bindings) {
+	if (join.conditions.empty()) {
+		return false;
+	}
+	column_binding_set_t inner_columns(inner_bindings.begin(), inner_bindings.end());
+	auto outer_bindings = join.children[outer_idx]->GetColumnBindings();
+	column_binding_set_t outer_columns(outer_bindings.begin(), outer_bindings.end());
+	column_binding_set_t equality_columns;
+	for (auto &condition : join.conditions) {
+		if (!condition.IsComparison() || condition.GetComparisonType() != ExpressionType::COMPARE_EQUAL ||
+		    condition.GetLHS().GetExpressionType() != ExpressionType::BOUND_COLUMN_REF ||
+		    condition.GetRHS().GetExpressionType() != ExpressionType::BOUND_COLUMN_REF) {
+			return false;
+		}
+		auto &inner = (inner_idx == 0 ? condition.GetLHS() : condition.GetRHS()).Cast<BoundColumnRefExpression>();
+		auto &outer = (outer_idx == 0 ? condition.GetLHS() : condition.GetRHS()).Cast<BoundColumnRefExpression>();
+		if (inner.Depth() || outer.Depth() || !inner_columns.count(inner.Binding()) ||
+		    !outer_columns.count(outer.Binding())) {
+			return false;
+		}
+		equality_columns.insert(inner.Binding());
+	}
+	auto unique_keys = ApplyFunctionalDependencies::GetUniqueColumnCombinations(*join.children[inner_idx]);
+	for (auto &key : unique_keys) {
+		bool covered = !key.empty();
+		for (auto &binding : key) {
+			if (!equality_columns.count(binding)) {
+				covered = false;
+				break;
+			}
+		}
+		if (covered) {
+			return true;
+		}
+	}
+	return false;
+}
+
 unique_ptr<LogicalOperator> JoinElimination::TryEliminateJoin() {
 	D_ASSERT(pipe_info.root);
 	if (!children.empty()) {
@@ -261,6 +301,13 @@ unique_ptr<LogicalOperator> JoinElimination::TryEliminateJoin() {
 		}
 	}
 
+	if (join.join_type != JoinType::SINGLE && HasUniqueJoinKey(join, inner_idx, outer_idx, inner_bindings)) {
+		auto projection_map = std::move(outer_idx == 0 ? join.left_projection_map : join.right_projection_map);
+		auto outer = std::move(join.children[outer_idx]);
+		join_op = LogicalJoin::PromoteJoinSide(std::move(outer), std::move(projection_map));
+		return std::move(pipe_info.root);
+	}
+
 	if (inner_idx == 1) {
 		for (auto &distinct : right_child->pipe_info.distinct_groups) {
 			pipe_info.distinct_groups[distinct.first] = distinct.second;
@@ -274,7 +321,6 @@ unique_ptr<LogicalOperator> JoinElimination::TryEliminateJoin() {
 	if (pipe_info.distinct_groups.empty()) {
 		return std::move(pipe_info.root);
 	}
-	// 1. TODO: guarantee by primary/foreign key
 
 	if (!is_output_unique) {
 		is_output_unique = true;
