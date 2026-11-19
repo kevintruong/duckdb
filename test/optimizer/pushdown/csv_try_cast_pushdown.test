@@ -1,0 +1,77 @@
+# name: test/optimizer/pushdown/csv_try_cast_pushdown.test
+# description: CSV cast pushdown preserves TRY_CAST's null-on-failure and row count semantics
+# group: [pushdown]
+
+statement ok
+COPY (SELECT CASE WHEN i = 97 THEN 'not_a_number' ELSE (i * 1.5)::VARCHAR END AS value
+      FROM range(1, 101) t(i))
+TO '{TEST_DIR}/try_cast_pushdown_report.csv' (HEADER);
+
+query II
+SELECT count(*), count(v)
+FROM (SELECT TRY_CAST(value AS DOUBLE) AS v
+      FROM read_csv('{TEST_DIR}/try_cast_pushdown_report.csv', all_varchar = true));
+----
+100	99
+
+query II
+SELECT count(*), count(v)
+FROM (SELECT TRY_CAST(value AS DOUBLE) AS v
+      FROM read_csv('{TEST_DIR}/try_cast_pushdown_report.csv', columns = {'value': 'VARCHAR'},
+                    ignore_errors = true));
+----
+100	99
+
+statement ok
+COPY (SELECT * FROM (VALUES
+  ('2025-01-01', '1', 10),
+  ('bad-date', 'bad-int', 20),
+  (NULL, NULL, 30)
+) t(date_text, int_text, strict_text))
+TO '{TEST_DIR}/try_cast_pushdown_mixed.csv' (HEADER);
+
+query TII rowsort
+SELECT TRY_CAST(date_text AS DATE), TRY_CAST(int_text AS BIGINT), CAST(strict_text AS BIGINT)
+FROM read_csv_auto('{TEST_DIR}/try_cast_pushdown_mixed.csv', types = {'date_text': 'VARCHAR'});
+----
+2025-01-01	1	10
+NULL	NULL	20
+NULL	NULL	30
+
+query II rowsort
+SELECT CAST(strict_text AS BIGINT), TRY_CAST(strict_text AS BIGINT)
+FROM read_csv('{TEST_DIR}/try_cast_pushdown_mixed.csv', all_varchar = true);
+----
+10	10
+20	20
+30	30
+
+statement error
+SELECT CAST(value AS DOUBLE)
+FROM read_csv('{TEST_DIR}/try_cast_pushdown_report.csv', all_varchar = true);
+----
+<REGEX>:Conversion Error:.*
+
+# A TRY cast starts after the CSV reader has enforced the source type.
+statement ok
+COPY (SELECT * FROM (VALUES ('7'), ('40000')) t(v))
+TO '{TEST_DIR}/try_cast_pushdown_smallint.csv' (HEADER);
+
+statement error
+SELECT TRY_CAST(v AS INTEGER)
+FROM read_csv('{TEST_DIR}/try_cast_pushdown_smallint.csv', columns = {'v': 'SMALLINT'},
+              header = true, auto_detect = false);
+----
+<REGEX>:Conversion Error:.*SMALLINT.*
+
+query I
+SELECT TRY_CAST(v AS INTEGER)
+FROM read_csv('{TEST_DIR}/try_cast_pushdown_smallint.csv', columns = {'v': 'SMALLINT'},
+              header = true, auto_detect = false, store_rejects = true);
+----
+7
+
+query I
+SELECT count(*) FROM reject_errors;
+----
+1
