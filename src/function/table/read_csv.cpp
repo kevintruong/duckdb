@@ -155,6 +155,10 @@ static bool PushdownProjectionExpression(ClientContext &context, const TableFunc
 		return false;
 	}
 	const auto &cast = input.expr.Cast<BoundFunctionExpression>();
+	// Retyping the scan bypasses the source type and TRY_CAST's NULL handling.
+	if (BoundCastExpression::IsTryCast(cast)) {
+		return false;
+	}
 	const auto &target_type = cast.GetReturnType();
 	auto &bind_data = input.get.bind_data.write().Cast<MultiFileBindData>();
 	// With a custom schema (the 'schema' option, or a MultiFileReader that binds its own schema) the files are mapped
