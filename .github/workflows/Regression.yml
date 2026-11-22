@@ -213,7 +213,9 @@ jobs:
 
   regression-bench-tpc:
     name: Bench ${{ matrix.name }}
-    if: ${{ github.repository_owner == 'duckdb' }}
+    if: >-
+      ${{ github.repository_owner == 'duckdb' ||
+          (github.repository == 'kevintruong/duckdb' && github.event_name == 'pull_request' && github.base_ref == 'main') }}
     needs:
       - linux-base
     runs-on: ${{ fromJSON(inputs.runners).linux_small }}

@@ -186,10 +186,10 @@ def extension_opt_in_archs(selection_input: JobSelectionInput) -> str:
 
 
 def windows_full_matrix(selection_input: JobSelectionInput) -> bool:
-    if selection_input.ref_name == selection_input.default_branch or selection_input.repository != "duckdb/duckdb":
-        return True
     if selection_input.event_name == "pull_request":
         return "extensions" in selection_input.changed_keys
+    if selection_input.ref_name == selection_input.default_branch or selection_input.repository != "duckdb/duckdb":
+        return True
     return selection_input.run_all
 
 

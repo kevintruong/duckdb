@@ -513,7 +513,12 @@ class JobStagesTest(unittest.TestCase):
         self.assertTrue(default_branch_dispatch.windows_full_matrix)
 
         fork_pr = self._compute_job_selection("pull_request", "feature/my-branch", "somefork/duckdb")
-        self.assertTrue(fork_pr.windows_full_matrix)
+        self.assertFalse(fork_pr.windows_full_matrix)
+
+        fork_extension_pr = self._compute_job_selection(
+            "pull_request", "feature/my-branch", "somefork/duckdb", changed_keys={"extensions"}
+        )
+        self.assertTrue(fork_extension_pr.windows_full_matrix)
 
     @unittest.skipIf(os.getenv("OVERRIDE_JOBS") is not None, SKIP_IF_OVERRIDE)
     def test_workflow_dispatch_with_skipped_tests_includes_optimized_release(self):

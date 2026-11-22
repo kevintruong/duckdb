@@ -39,7 +39,7 @@ jobs:
             destination: 'iOS Simulator,name=iPhone 16'
           - isRelease: false
             destination: 'tvOS Simulator,name=Apple TV 4K (at 1080p) (3nd generation)'
-    runs-on: ${{ inputs.runner_macos_arm64 || 'macos-14' }}
+    runs-on: ${{ inputs.runner_macos_arm64 || (inputs.runner_provider == 'github' && 'macos-15' || 'macos-14') }}
     steps:
 
       - name: Checkout
@@ -63,7 +63,9 @@ jobs:
         run: python3 tools/swift/create_package.py tools/swift
 
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app && /usr/bin/xcodebuild -version
+        env:
+          XCODE_PATH: ${{ inputs.runner_provider == 'github' && '/Applications/Xcode_16.4.app' || '/Applications/Xcode_15.4.app' }}
+        run: sudo xcode-select -switch "$XCODE_PATH" && /usr/bin/xcodebuild -version
 
       - name: Run Tests
         run: |
