@@ -346,9 +346,8 @@ void ColumnBindingRewrite::ApplyToOperatorBindings(LogicalOperator &op, const Bi
 	replacer.VisitOperatorBindings(op);
 }
 
-static bool TryResolveToOutput(ColumnBinding binding, const column_binding_set_t &new_bindings,
-                               const BindingReplacementGraph &replacements, ReplacementBinding &result) {
-	result = ReplacementBinding(binding, binding);
+static bool TryResolveToOutput(const column_binding_set_t &new_bindings, const BindingReplacementGraph &replacements,
+                               ReplacementBinding &result) {
 	column_binding_set_t visited;
 	while (new_bindings.find(result.new_binding) == new_bindings.end()) {
 		if (!visited.insert(result.new_binding).second) {
@@ -371,15 +370,10 @@ BindingReplacementGraph BindingReplacementGraph::ScopedToBoundary(const vector<C
 	column_binding_set_t boundary_bindings(boundary.begin(), boundary.end());
 	BindingReplacementGraph result;
 	for (auto &replacement : replacement_bindings) {
-		// Resolve from the edge target so that edges departing from a boundary binding keep their continuation
-		ReplacementBinding resolved(replacement.old_binding, replacement.old_binding);
-		if (!TryResolveToOutput(replacement.new_binding, boundary_bindings, *this, resolved)) {
+		// Start from the edge target to keep continuations from bindings in the boundary.
+		auto resolved = replacement;
+		if (!TryResolveToOutput(boundary_bindings, *this, resolved)) {
 			continue;
-		}
-		resolved.old_binding = replacement.old_binding;
-		if (replacement.replace_type && !resolved.replace_type) {
-			resolved.replace_type = true;
-			resolved.new_type = replacement.new_type;
 		}
 		if (resolved.old_binding == resolved.new_binding) {
 			continue;
@@ -398,8 +392,8 @@ static vector<ReplacementBinding> ScopeToOutput(const vector<ColumnBinding> &new
 			continue;
 		}
 
-		ReplacementBinding output_replacement(replacement.old_binding, replacement.old_binding);
-		if (!TryResolveToOutput(replacement.old_binding, new_bindings, replacements, output_replacement)) {
+		auto output_replacement = replacement;
+		if (!TryResolveToOutput(new_bindings, replacements, output_replacement)) {
 			continue;
 		}
 		result.push_back(std::move(output_replacement));
@@ -413,7 +407,7 @@ void ColumnBindingRewrite::ValidateOutput(const vector<ColumnBinding> &old_outpu
 	column_binding_set_t new_bindings(new_output.begin(), new_output.end());
 	for (auto &binding : old_output) {
 		ReplacementBinding resolved(binding, binding);
-		if (!TryResolveToOutput(binding, new_bindings, replacements, resolved)) {
+		if (!TryResolveToOutput(new_bindings, replacements, resolved)) {
 			throw InternalException("Binding rewrite lost output binding %s (resolved to %s, output %s)",
 			                        binding.ToString(), resolved.new_binding.ToString(),
 			                        LogicalOperator::ColumnBindingsToString(new_output));
@@ -461,7 +455,7 @@ void ColumnBindingRewrite::ApplyToChild(unique_ptr<LogicalOperator> &op, idx_t c
 	for (auto &binding : old_child_bindings) {
 		if (new_bindings.find(binding) == new_bindings.end() && replacements.Find(binding)) {
 			ReplacementBinding resolved(binding, binding);
-			if (!TryResolveToOutput(binding, new_bindings, replacements, resolved)) {
+			if (!TryResolveToOutput(new_bindings, replacements, resolved)) {
 				throw InternalException("Binding rewrite moved child binding %s outside rewritten child output %s",
 				                        binding.ToString(),
 				                        LogicalOperator::ColumnBindingsToString(new_child_bindings));
