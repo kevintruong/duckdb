@@ -1,0 +1,40 @@
+# name: test/sql/subquery/scalar/test_issue_28842.test
+# description: Preserve bindings across repeated correlated scalar lookups
+# group: [scalar]
+
+statement ok
+CREATE TABLE resources(id INTEGER, resource_key VARCHAR)
+
+statement ok
+INSERT INTO resources VALUES (1, 'k1'), (2, NULL), (3, 'missing')
+
+statement ok
+CREATE TABLE lookup(patient_id BIGINT, row_key VARCHAR, metric BIGINT, label VARCHAR)
+
+statement ok
+INSERT INTO lookup VALUES (1, 'k1', 100, 'direct'), (2, '2', 200, 'fallback')
+
+query IIT
+SELECT r.id,
+       (WITH matched AS (
+           SELECT metric FROM lookup
+           WHERE patient_id = r.id AND row_key = COALESCE(r.resource_key, r.id::VARCHAR)
+        ) SELECT metric FROM matched),
+       (SELECT label FROM lookup
+        WHERE patient_id = r.id AND row_key = COALESCE(r.resource_key, r.id::VARCHAR))
+FROM resources r
+ORDER BY r.id
+----
+1	100	direct
+2	200	fallback
+3	NULL	NULL
+
+statement ok
+INSERT INTO lookup VALUES (1, 'k1', 300, 'duplicate')
+
+statement error
+SELECT (SELECT metric FROM lookup
+        WHERE patient_id = r.id AND row_key = COALESCE(r.resource_key, r.id::VARCHAR))
+FROM resources r
+----
+More than one row returned by a subquery used as an expression
